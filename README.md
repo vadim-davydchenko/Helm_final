@@ -1,1 +1,29 @@
-# Helm_final
+### Helm chart for installing the Speedtest application with support for various databases
+- Create a blank chart named deploy using `helm create deploy`
+- Use an image: `registry.rebrainme.com/workshops/middle/kubernetes-local/newplatform_autochecks/speedtest:5.3`
+- The image must be loaded from a closed registry with authorization via imagePullSecrets implemented in named templates
+- All secrets must be encrypted using helm secrets (sops or vals)
+- Standard helm labels and annotations should be added to the new chart manifests
+- The application must be run in frontend mode with telemetry storage, ID obfuscation, and no ability to edit IP addresses
+- The application supports PostgreSQL and MySQL, add the ability to connect a particular DBMS through dependencies
+- Add to Chart.yaml dependencies on PostgreSQL and MySQL
+- Implement the ability to enable/disable a specific database using conditions
+- Working with the ConfigMap configuration
+  - Create a files folder in the chart and place the servers.json file in it
+  - Create a ConfigMap from the contents of this folder and mount it in a container
+  - Implement automatic processing of all files in a folder by creating a ConfigMap for each
+- Hooks for Database initialization
+  - Add hooks to the Helm chart to perform initial database initialization.
+  - Use scripts from the repository.
+  - Implement a similar mechanism with init containers.
+- Setting up probes and ingress
+  - Enable and configure readiness and liveness tests.
+  - Implement Ingress, allowing you to specify the destination port and the service name
+- Implement it in values.yaml parameters for:
+  - Changes to the deployment strategy
+  - The ability to add additional labels and annotations for the Service
+  - Specifying environment variables via env.
+  - Automatic restart of the pods when the ConfigMap is changed.
+  - The ability to override command: [] and args:[] for the container.
+  - Support for cert-manager certificates and the Let's Encrypt request.
+  - Using helmfile for dependency management 

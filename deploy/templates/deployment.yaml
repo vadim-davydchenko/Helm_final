@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "deploy.fullname" . }}
+  labels:
+    {{- include "deploy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "deploy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "deploy.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "deploy.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "deploy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if eq .Values.database.DB_TYPE "postgresql" }}
+      initContainers:
+        - name: init-db
+          image: postgres:13-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h $DB_HOSTNAME -p 5432; do
+                echo "Waiting for database to be ready..."
+                sleep 2
+              done
+              psql "postgresql://$DB_USERNAME:$DB_PASSWORD@$DB_HOSTNAME:5432/$DB_NAME" -f /docker-entrypoint-initdb.d/telemetry_postgresql.sql
+          env:
+            - name: DB_HOSTNAME
+              value: {{ .Release.Name }}-postgresql
+            - name: DB_NAME
+              value: {{ .Values.database.DB_NAME }}
+            - name: DB_USERNAME
+              value: {{ .Values.database.DB_USERNAME }}
+            - name: DB_PASSWORD
+              value: {{ .Values.database.DB_PASSWORD }}
+          volumeMounts:
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.command }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          {{- if .Values.args }}
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+          {{- end }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+          {{- end }}
+            - name: DB_TYPE
+              value: {{ .Values.database.DB_TYPE }}
+            - name: DB_HOSTNAME
+              value: {{ .Release.Name }}-postgresql
+            - name: DB_NAME
+              value: {{ .Values.database.DB_NAME }}
+            - name: DB_USERNAME
+              value: {{ .Values.database.DB_USERNAME }}
+            - name: DB_PASSWORD
+              value: {{ .Values.database.DB_PASSWORD }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /servers.json
+              subPath: servers.json
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "deploy.fullname" . }}-servers
+        {{- if eq .Values.database.DB_TYPE "postgresql" }}
+        - name: init-script
+          configMap:
+            name: {{ include "deploy.fullname" . }}-db-init
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,42 @@
+helmDefaults:
+  cleanupOnFail: false
+  atomic: true
+  wait: true
+  waitForJobs: false
+  timeout: 300
+
+repositories:
+  - name: bitnamicharts
+    url: "registry-1.docker.io/bitnamicharts"
+    oci: true
+
+releases:
+  - name: deploy
+    chart: ./deploy/charts/deploy
+
+  - name: cert-manager
+    chart: oci://registry-1.docker.io/bitnamicharts/cert-manager
+    values: []
+    version: 1.4.13
+    set:
+      - name: installCRDs
+        value: true
+    installed: {{ .Values.certManager.enabled }}
+
+  - name: postgresql
+    chart: bitnami/postgresql
+    version: 14.3.3
+    installed: {{ .Values.postgresql.enabled }}
+    values:
+      - primary:
+          persistence:
+            enabled: false
+
+  - name: mysql
+    chart: bitnami/mysql
+    version: 10.2.4
+    installed: {{ .Values.mysql.enabled }}
+    values:
+      - primary:
+          persistence:
+            enabled: false

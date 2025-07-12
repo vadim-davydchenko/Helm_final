@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "deploy.fullname" . }}-servers
+  labels:
+    {{- include "deploy.labels" . | nindent 4 }}
+data:
+  servers.json: |-
+    {{- .Files.Get "files/servers.json" | nindent 4 }}
+---
+{{- if eq .Values.database.DB_TYPE "postgresql" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "deploy.fullname" . }}-db-init
+  labels:
+    {{- include "deploy.labels" . | nindent 4 }}
+data:
+  telemetry_postgresql.sql: |-
+    {{- .Files.Get "files/telemetry_postgresql.sql" | nindent 4 }}
+{{- end }} 
